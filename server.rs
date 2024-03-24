@@ -52,7 +52,6 @@ impl crate::Plugin for Plugin {
                 Ok(v) => {
                     match v.text().await {
                         Ok(v) => {
-                            println!("{}", v);
                             let timespan_response = serde_json::from_str::<TimespanResponse>(&v)?;
                             TimeRange {
                                 start: DateTime::from_timestamp_millis(timespan_response.data.start as i64).unwrap(),
