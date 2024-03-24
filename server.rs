@@ -1,9 +1,11 @@
-use crate::PluginData;
-use chrono::{DateTime, Local, TimeDelta, Utc};
-use serde::Deserialize;
-use serde_json::json;
-use types::{api::CompressedEvent, timing::TimeRange};
-use url::Url;
+use {
+    crate::PluginData,
+    chrono::{DateTime, TimeDelta},
+    serde::Deserialize,
+    serde_json::json,
+    types::{api::CompressedEvent, timing::TimeRange},
+    url::Url
+};
 
 #[derive(Deserialize)]
 struct ConfigData{
@@ -12,7 +14,7 @@ struct ConfigData{
 }
 
 pub struct Plugin {
-    plugin_data: PluginData,
+    _plugin_data: PluginData,
     config: ConfigData
 }
 
@@ -27,7 +29,7 @@ impl crate::Plugin for Plugin {
         )
         .unwrap_or_else(|e| panic!("Unable to init location plugin! Provided config does not fit the requirements: {}", e));
 
-        Plugin { plugin_data: data, config }
+        Plugin { _plugin_data: data, config }
     }
 
     fn get_type() -> types::api::AvailablePlugins
@@ -68,14 +70,14 @@ impl crate::Plugin for Plugin {
             };
 
             let mut resulting_vec = Vec::new();
-            let mut current = query_range.start.clone();
+            let mut current = query_range.start;
             
             while current < query_range.end {
                 timespawn.includes(&current);
-                let new_current = current.clone().checked_add_signed(TimeDelta::try_hours(1).unwrap()).unwrap();
+                let new_current = current.checked_add_signed(TimeDelta::try_hours(1).unwrap()).unwrap();
                 resulting_vec.push(TimeRange {
-                    start: current.clone(),
-                    end: new_current.clone()
+                    start: current,
+                    end: new_current
                 });
                 current = new_current;
             }
