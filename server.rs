@@ -48,7 +48,7 @@ impl crate::Plugin for Plugin {
             api_url.set_path("/api/data");
             let client = reqwest::Client::new();
             let request_result = client.post(api_url).body(json! ({"export": "timespan", "module": "public/locations.js", "arguments": [password]}).to_string()).header("Content-Type", "application/json").send().await;
-            let timespawn = match request_result {
+            let timespan = match request_result {
                 Ok(v) => {
                     match v.text().await {
                         Ok(v) => {
@@ -59,25 +59,26 @@ impl crate::Plugin for Plugin {
                             }
                         }
                         Err(e) => {
-                            return Err(types::api::APIError::PluginError(format!("Location Plugin: Unable to get timespawn: Request Error: {}", e)))
+                            return Err(types::api::APIError::PluginError(format!("Location Plugin: Unable to get timespan: Request Error: {}", e)))
                         }
                     }
                 }
                 Err(e) => {
-                    return Err(types::api::APIError::PluginError(format!("Location Plugin: Unable to get timespawn: Request Error: {}", e)))
+                    return Err(types::api::APIError::PluginError(format!("Location Plugin: Unable to get timespan: Request Error: {}", e)))
                 }
             };
 
             let mut resulting_vec = Vec::new();
             let mut current = query_range.start;
-            
+
             while current < query_range.end {
-                timespawn.includes(&current);
                 let new_current = current.checked_add_signed(TimeDelta::try_hours(1).unwrap()).unwrap();
-                resulting_vec.push(TimeRange {
-                    start: current,
-                    end: new_current
-                });
+                if timespan.includes(&current) {
+                    resulting_vec.push(TimeRange {
+                        start: current,
+                        end: new_current
+                    });
+                }
                 current = new_current;
             }
             let resulting_vec: Vec<_> = resulting_vec.into_iter().map(|v| {
