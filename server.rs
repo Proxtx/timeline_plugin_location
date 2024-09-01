@@ -47,7 +47,7 @@ impl crate::Plugin for Plugin {
             let mut api_url = url.clone();
             api_url.set_path("/api/data");
             let client = reqwest::Client::new();
-            let request_result = client.post(api_url).body(json! ({"export": "timespan", "module": "public/locations.js", "arguments": [password]}).to_string()).header("Content-Type", "application/json").send().await;
+            let request_result = client.post(api_url.clone()).body(json! ({"export": "timespan", "module": "public/locations.js", "arguments": [password]}).to_string()).header("Content-Type", "application/json").send().await;
             let timespan = match request_result {
                 Ok(v) => {
                     match v.text().await {
@@ -68,6 +68,8 @@ impl crate::Plugin for Plugin {
                 }
             };
 
+            let signature = Plugin::get_signature(&password, api_url, &query_range).await?;
+
             let mut resulting_vec = Vec::new();
             let mut current = query_range.start;
 
@@ -84,13 +86,35 @@ impl crate::Plugin for Plugin {
             let resulting_vec: Vec<_> = resulting_vec.into_iter().map(|v| {
                 CompressedEvent {
                     time: types::timing::Timing::Range(v.clone()),
-                    data: Box::new((v, url.clone())),
+                    data: Box::new((v, url.clone(), signature.clone())),
                     title: "Locations".to_string()
                 }
             }).collect();
             
             Ok(resulting_vec)
         })
+    }
+}
+
+impl Plugin {
+    async fn get_signature(password: &str, api_url: Url, query_range: &types::timing::TimeRange) -> types::api::APIResult<String> {
+        let client = reqwest::Client::new();
+        let request_result = client.post(api_url).body(json! ({"export": "signLocations", "module": "public/locations.js", "arguments": [password, query_range.start.timestamp_millis(), query_range.end.timestamp_millis()]}).to_string()).header("Content-Type", "application/json").send().await;
+        match request_result {
+            Ok(v) => {
+                match v.text().await {
+                    Ok(v) => {
+                        Ok(serde_json::from_str::<SigningResponse>(&v)?.data)
+                    }
+                    Err(e) => {
+                        Err(types::api::APIError::PluginError(format!("Location Plugin: Unable to get timespan: Request Error: {}", e)))
+                    }
+                }
+            }
+            Err(e) => {
+                Err(types::api::APIError::PluginError(format!("Location Plugin: Unable to get timespan: Request Error: {}", e)))
+            }
+        }
     }
 }
 
@@ -103,4 +127,9 @@ struct TimespanResponse {
 struct TimespanResponseData {
     pub start: u64,
     pub end: u64
+}
+
+#[derive(Deserialize)]
+struct SigningResponse {
+    pub data: String
 }
